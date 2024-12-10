@@ -1,77 +1,47 @@
 package dev.antsy.kmp.desktop
 
+import ProjectTheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.configureSwingGlobalsForCompose
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.awaitApplication
 import com.formdev.flatlaf.IntelliJTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.awt.Dimension
 import java.awt.Window
 import java.io.ByteArrayInputStream
-import javax.swing.LookAndFeel
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
 import kotlin.system.exitProcess
-import kotlin.time.Duration.Companion.seconds
 
-val lightColor = """
+val themeTemplate = """
 {
-    "name": "Test",
-    "dark": false,
-    "author": "Antsy",
-    "ui": {
-        "*": {
-            "foreground": "#000000",
-            "background": "#ffffff"
-        }
-    }
+    "name": "SwingUI",
+    "dark": %b,
+    "author": "Mihon Open Source Project",
+    "ui": { "*": { "background": "%s" } }
 }
 """.trimIndent()
 
-val darkColor = """
-{
-    "name": "Test",
-    "dark": true,
-    "author": "Antsy",
-    "ui": {
-        "*": {
-            "foreground": "#ffffff",
-            "background": "#000000"
-        }
-    }
-}
-""".trimIndent()
+inline val Color.rgbHex get() = String.format("#%06X", 0xFFFFFF and toArgb())
 
-fun String.createLaf(): LookAndFeel {
-    val inputStream = ByteArrayInputStream(toByteArray())
-    return IntelliJTheme.createLaf(inputStream)
+fun updateDecorationTheme(darkMode: Boolean, background: Color) {
+    val theme = themeTemplate.format(darkMode, background.rgbHex)
+    val laf = ByteArrayInputStream(theme.toByteArray()).use(IntelliJTheme::createLaf)
+    UIManager.setLookAndFeel(laf)
+    Window.getWindows().forEach(SwingUtilities::updateComponentTreeUI)
 }
 
-@OptIn(
-    DelicateCoroutinesApi::class,
-    ExperimentalComposeUiApi::class,
-)
+const val darkTheme = false
+val backgroundColor = if (darkTheme) Color.Black else Color.White
+
+@OptIn(ExperimentalComposeUiApi::class)
 suspend fun main()  {
     configureSwingGlobalsForCompose()
-    GlobalScope.launch {
-        withUIContext {
-            UIManager.setLookAndFeel(darkColor.createLaf())
-            for (index in 5 downTo 1) {
-                println("Changing to light theme in $index seconds")
-                delay(1.seconds)
-            }
-            println("Changing to light theme")
-            UIManager.setLookAndFeel(lightColor.createLaf())
-            Window.getWindows().forEach(SwingUtilities::updateComponentTreeUI)
-        }
-    }
+    updateDecorationTheme(darkTheme, backgroundColor)
     awaitApplication {
         DisposableEffect(Unit) {
             onDispose {
@@ -82,9 +52,12 @@ suspend fun main()  {
             onCloseRequest = ::exitApplication,
             title = "KotlinProject",
         ) {
-            App()
+            LaunchedEffect(window) {
+                window.minimumSize = Dimension(800, 600)
+            }
+            ProjectTheme(darkTheme) {
+                App()
+            }
         }
     }
 }
-
-suspend fun <T> withUIContext(block: suspend CoroutineScope.() -> T): T = withContext(Dispatchers.Main, block)
