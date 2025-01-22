@@ -1,6 +1,7 @@
 package dev.antsy.kmp.desktop
 
 import ProjectTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -22,26 +23,25 @@ val themeTemplate = """
     "name": "SwingUI",
     "dark": %b,
     "author": "Mihon Open Source Project",
-    "ui": { "*": { "background": "%s" } }
+    "ui": { "*.background": "%s" }
 }
 """.trimIndent()
 
 inline val Color.rgbHex get() = String.format("#%06X", 0xFFFFFF and toArgb())
 
 fun updateDecorationTheme(darkMode: Boolean, background: Color) {
+    println("darkMode=${darkMode};background=${background.rgbHex}")
     val theme = themeTemplate.format(darkMode, background.rgbHex)
     val laf = ByteArrayInputStream(theme.toByteArray()).use(IntelliJTheme::createLaf)
     UIManager.setLookAndFeel(laf)
     Window.getWindows().forEach(SwingUtilities::updateComponentTreeUI)
 }
 
-const val darkTheme = false
-val backgroundColor = if (darkTheme) Color.Black else Color.White
+const val darkTheme = true
 
 @OptIn(ExperimentalComposeUiApi::class)
 suspend fun main()  {
     configureSwingGlobalsForCompose()
-    updateDecorationTheme(darkTheme, backgroundColor)
     awaitApplication {
         DisposableEffect(Unit) {
             onDispose {
@@ -50,12 +50,16 @@ suspend fun main()  {
         }
         Window(
             onCloseRequest = ::exitApplication,
-            title = "KotlinProject",
+            title = "Mihon",
         ) {
             LaunchedEffect(window) {
                 window.minimumSize = Dimension(800, 600)
             }
             ProjectTheme(darkTheme) {
+                val background = MaterialTheme.colorScheme.surface
+                LaunchedEffect(darkTheme, background) {
+                    updateDecorationTheme(darkTheme, background)
+                }
                 App()
             }
         }
